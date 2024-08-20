@@ -17,9 +17,10 @@ if TYPE_CHECKING:
 
 class TrouteOutput:
 
-    def __init__(self, filepath: Path) -> None:
+    def __init__(self, filepath: Path, nexus_output: Path) -> None:
         self._output_file = filepath
         self._type = filepath.suffix
+        self._nexus_output = nexus_output
 
     def _get_dataframe(self) -> DataFrame | None:
         """Get the t-route output raw dataframe from either csv or hdf5 files
@@ -51,8 +52,8 @@ class TrouteOutput:
 
             df = df.loc[id]
             output = df.xs('q', level=1, drop_level=False)
-            #This is a hacky way to get the time index...pass the time around???
-            tnx_file = list(Path(self._output_file).parent.glob("nex*.csv"))[0]
+            tnx_file = list(self._nexus_output.glob("nex*.csv"))[0]
+            
             tnx_df = pd.read_csv(tnx_file, index_col=0, parse_dates=[1], names=['ts', 'time', 'Q']).set_index('time')
             dt_range = pd.date_range(tnx_df.index[0], tnx_df.index[-1], len(output.index)).round('min')
             output.index = dt_range

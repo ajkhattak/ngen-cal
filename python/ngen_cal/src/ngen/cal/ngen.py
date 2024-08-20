@@ -94,7 +94,8 @@ class NgenBase(ModelExec):
     #dependent fields
     binary: str = 'ngen'
     args: Optional[str]
-
+    nexus_output: Optional[Path]
+    
     #private, not validated
     _catchments: Sequence[CalibrationCatchment] = []
     _catchment_hydro_fabric: gpd.GeoDataFrame
@@ -137,7 +138,7 @@ class NgenBase(ModelExec):
         from .ngen_hooks.observations import UsgsObservations
 
         # t-route outputs
-        self._plugin_manager.register(TrouteOutput(self.routing_output))
+        self._plugin_manager.register(TrouteOutput(self.routing_output, self.nexus_output))
         # observations
         self._plugin_manager.register(UsgsObservations())
 
