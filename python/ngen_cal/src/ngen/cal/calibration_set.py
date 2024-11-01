@@ -135,7 +135,8 @@ class UniformCalibrationSet(CalibrationSet, Adjustable):
     #Override this file name
     @property
     def check_point_file(self) -> Path:
-        return Path(f'{self._eval_nexus.id}_parameter_df_state.parquet')
+        #return Path(f'{self._eval_nexus.id}_parameter_df_state.parquet')
+        return Path('calib_param_df_state.parquet')
 
     def restart(self):
         try:
