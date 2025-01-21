@@ -100,4 +100,7 @@ class ModelHooks:
         And before the next iteration is configured and started.
         Currently called at the end of an Adjustable's check_point function
         which writes out calibration/parameter state data each iteration.
+
+        Raise `ngen.cal.errors.StopEarly` to cancel further calibration iterations.
+        Post-calibration validation will be conducted if configured.
         """

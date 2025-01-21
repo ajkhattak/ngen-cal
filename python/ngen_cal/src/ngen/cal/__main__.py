@@ -11,6 +11,7 @@ from ngen.cal.search import dds, dds_set, pso_search
 from ngen.cal.strategy import Algorithm
 from ngen.cal.agent import Agent
 from ngen.cal._plugin_system import setup_plugin_manager
+from ngen.cal.errors import StopEarly
 
 from typing import cast, Callable, List, Union, TYPE_CHECKING
 from types import ModuleType
@@ -202,6 +203,15 @@ def main(general: General, model_conf: Mapping[str, Any]):
             #    func(start_iteration, general.iterations, catchment_set, agent)
             func(start_iteration, general.iterations, agent)
 
+    # call `ngen_cal_finish` plugin hook functions if there was an exception
+    # that could not be handled
+    except StopEarly:
+        pass
+    except Exception as e:
+        plugin_manager.hook.ngen_cal_finish(exception=e)
+        raise e
+
+    try:
         if (validation_parms := model.model.unwrap().val_params) is not None:
             _validation(agent, validation_parms)
     except Exception as e:
