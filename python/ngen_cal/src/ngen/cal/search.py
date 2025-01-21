@@ -83,16 +83,19 @@ def dds_update(iteration: int, inclusion_probability: float, calibration_object:
         #permute the variables in neighborhood
         #using a random normal sample * sigma, sigma = 0.2*(max-min)
         #print(n, meta.best_params)
+        # Figure 1. Step 4.1
         new = calibration_object.df.loc[n, agent.best_params] + calibration_object.df.loc[n, 'sigma']*np.random.normal(0,1)
         lower =  calibration_object.df.loc[n, 'min']
         upper = calibration_object.df.loc[n, 'max']
         #print( new )
         #print( lower )
         #print( upper )
+        # Figure 1. Step 4.2
         if new < lower:
             new = lower + (lower - new)
             if new > upper:
                 new = lower
+        # Figure 1. Step 4.3
         elif new > upper:
             new = upper - (new - upper)
             if new < lower:
@@ -115,8 +118,10 @@ def dds(start_iteration: int, iterations: int,  calibration_object: Evaluatable,
         raise(ValueError("start_iteration must be <= iterations"))
 
     init = start_iteration - 1 if start_iteration > 0 else start_iteration
+    # Figure 1. Step 1.1
     neighborhood_size = agent.parameters.get('neighborhood', 0.2)
 
+    # Figure 1. Step 4.1
     #precompute sigma for each variable based on neighborhood_size and bounds
     calibration_object.df['sigma'] = neighborhood_size*(calibration_object.df['max'] - calibration_object.df['min'])
     agent.update_config(init, calibration_object.df[[str(init), 'param', 'model']], calibration_object.id)
@@ -152,6 +157,12 @@ def dds_set(start_iteration: int, iterations: int, agent: Agent):
         This works by giving each object a parameter space, but allows a single execution
         step to happen each iteration, and then each object in the set can be adjusted independently
         and then evaluated as a whole.
+
+        Tolson, B. A., and C. A. Shoemaker (2007), Dynamically dimensioned
+        search algorithm for computationally efficient watershed model
+        calibration, Water Resour. Res., 43, W01413, doi:10.1029/2005WR004723.V
+
+        Figure 1 in Tolson & Shoemaker 2007 used as reference for implementation.
     """
     # TODO I think the can ultimately be refactored and merged with dds, there only a couple very
     # minor differenes in this implementation, and I think those can be abstrated away
@@ -161,6 +172,7 @@ def dds_set(start_iteration: int, iterations: int, agent: Agent):
     if start_iteration > iterations:
         raise(ValueError("start_iteration must be <= iterations"))
 
+    # Figure 1
     neighborhood_size = agent.parameters.get('neighborhood', 0.2)
 
     calibration_sets = agent.model.adjustables
