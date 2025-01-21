@@ -68,9 +68,11 @@ def dds_update(iteration: int, inclusion_probability: float, calibration_object:
 
     print( f"inclusion probability: {inclusion_probability}" )
     #select a random subset of variables to modify
-    #TODO convince myself that grabbing a random selction of P fraction of items
-    #is the same as selecting item with probability P
-    neighborhood = calibration_object.variables.sample(frac=inclusion_probability)
+    # see Figure 1 in https://doi.org/10.1029/2005WR004723
+    # Figure 1. Step 3.2
+    dv_mask = np.random.binomial(1, inclusion_probability, len(calibration_object.variables)).astype("bool")
+    neighborhood = calibration_object.variables[dv_mask]
+    # Figure 1. Step 3.3
     if neighborhood.empty:
         neighborhood = calibration_object.variables.sample(n=1)
     print( f"neighborhood: {neighborhood}" )
