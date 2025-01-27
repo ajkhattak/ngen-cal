@@ -18,6 +18,7 @@ import pandas as pd
 import shutil
 from enum import Enum
 import re
+import os
 from ngen.config.realization import NgenRealization, Realization, CatchmentRealization
 from ngen.config.multi import MultiBMI
 from .model import ModelExec, PosInt, Configurable
@@ -292,6 +293,11 @@ class NgenBase(ModelExec):
                 args += f' {partitions}'
             values['binary'] = binary
             values['args'] = args
+
+        # accept `eval_feature` from environment if not already provided
+        eval_feature = values.get('eval_feature') or os.environ.get('eval_feature')
+        if eval_feature is not None:
+            values["eval_feature"] = eval_feature
 
         return values
 
