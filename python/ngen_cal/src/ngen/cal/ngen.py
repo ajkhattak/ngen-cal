@@ -12,6 +12,7 @@ import warnings
 #supress geopandas debug logs
 logging.disable(logging.DEBUG)
 import json
+import enum
 json.encoder.FLOAT_REPR = str #lambda x: format(x, '%.09f')
 import geopandas as gpd
 import pandas as pd
@@ -81,6 +82,10 @@ def _map_params_to_realization(params: Mapping[str, Parameters], realization: Re
     else:
         return _params_as_df(params, module.model_name)
 
+class _HFVersion(enum.Enum):
+    HF_2_0 = enum.auto()
+    HF_2_1 = enum.auto()
+    HF_2_2 = enum.auto()
 
 class NgenBase(ModelExec):
     """
