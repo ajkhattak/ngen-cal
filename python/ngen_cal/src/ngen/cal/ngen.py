@@ -642,8 +642,7 @@ class NgenUniform(NgenBase):
         if self.eval_feature:
             for n in eval_nexus:
                 wb = self._flowpath_hydro_fabric[ self._flowpath_hydro_fabric['toid'] == n.id ]
-                key = wb.iloc[0].name
-                if key == self.eval_feature:
+                if self.eval_feature in wb.index:
                     eval_nexus = [n]
                     break
 
