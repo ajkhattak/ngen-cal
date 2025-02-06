@@ -222,16 +222,11 @@ class NgenBase(ModelExec):
         self._flowpath_hydro_fabric = gpd.read_file(self.hydrofabric, layer='flowlines')
         self._flowpath_hydro_fabric.set_index('id', inplace=True)
 
-        try:
-            # hydrofabric > 2.1 use 'flowpath-attributes'
-            attributes = gpd.read_file(self.hydrofabric, layer="flowpath-attributes")
-            attributes.set_index("id", inplace=True)
-            self._x_walk = pd.Series( attributes[ ~ attributes['rl_gages'].isna() ]['rl_gages'] )
-        except:
-            # hydrofabric > 2.1 use 'flowpath-attributes'
-            attributes = gpd.read_file(self.hydrofabric, layer="flowpath-attributes")
-            attributes.set_index("link", inplace=True)
-            self._x_walk = pd.Series( attributes[ ~ attributes['gage'].isna() ]['gage'] )
+        # hydrofabric > 2.1 use 'flowpath-attributes'
+        attributes = gpd.read_file(self.hydrofabric, layer="flowpath-attributes")
+        attributes.set_index("id", inplace=True)
+
+        self._x_walk = pd.Series( attributes[ ~ attributes['rl_gages'].isna() ]['rl_gages'] )
 
     def _read_legacy_gpkg_hydrofabric(self) -> None:
         # Read geopackage hydrofabric
