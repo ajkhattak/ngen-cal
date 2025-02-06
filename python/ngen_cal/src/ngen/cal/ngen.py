@@ -12,12 +12,14 @@ import warnings
 #supress geopandas debug logs
 logging.disable(logging.DEBUG)
 import json
+import enum
 json.encoder.FLOAT_REPR = str #lambda x: format(x, '%.09f')
 import geopandas as gpd
 import pandas as pd
 import shutil
 from enum import Enum
 import re
+import os
 from ngen.config.realization import NgenRealization, Realization, CatchmentRealization
 from ngen.config.multi import MultiBMI
 from .model import ModelExec, PosInt, Configurable
@@ -80,6 +82,10 @@ def _map_params_to_realization(params: Mapping[str, Parameters], realization: Re
     else:
         return _params_as_df(params, module.model_name)
 
+class _HFVersion(enum.Enum):
+    HF_2_0 = enum.auto()
+    HF_2_1 = enum.auto()
+    HF_2_2 = enum.auto()
 
 class NgenBase(ModelExec):
     """
@@ -134,10 +140,15 @@ class NgenBase(ModelExec):
 
         # Read the catchment hydrofabric data
         if self.hydrofabric is not None:
-            if self._is_legacy_gpkg_hydrofabric(self.hydrofabric):
+            hf_version = self._hf_version(self.hydrofabric)
+            if hf_version == _HFVersion.HF_2_0:
                 self._read_legacy_gpkg_hydrofabric()
+            elif hf_version == _HFVersion.HF_2_1:
+                self._read_gpkg_hydrofabric_2_1()
+            elif hf_version == _HFVersion.HF_2_2:
+                self._read_gpkg_hydrofabric_2_2()
             else:
-                self._read_gpkg_hydrofabric()
+                raise RuntimeError("unreachable")
         else:
             self._read_legacy_geojson_hydrofabric()
 
@@ -156,21 +167,50 @@ class NgenBase(ModelExec):
         self._plugin_manager.register(UsgsObservations())
 
     @staticmethod
-    def _is_legacy_gpkg_hydrofabric(hydrofabric: Path) -> bool:
-        """Return True if legacy (<=v2.1) gpkg hydrofabric."""
+    def _hf_version(hydrofabric: Path) -> _HFVersion:
+        """Detect HF version using table schema. Raise KeyError if unsuccessful."""
         import sqlite3
         connection = sqlite3.connect(hydrofabric)
-        # hydrofabric <= 2.1 use 'flowpaths'
-        # hydrofabric > 2.1 use 'flowlines'
-        query = "SELECT name FROM sqlite_master WHERE type='table' AND name='flowpaths';"
+        query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'flow%';"
         try:
             cursor = connection.execute(query)
-            value = cursor.fetchone()
+            values = cursor.fetchall()
+            values = set(map(lambda v: v[0], values))
         finally:
             connection.close()
-        return value is not None
+        assert len(values) >= 2, "expect at least two table names that start with 'flow'"
+        # hydrofabric <= 2.1 use 'flowpaths' AND 'flowpath_attributes'
+        # hydrofabric >= 2.1; < 2.2 use 'flowlines' AND 'flowpath-attributes'
+        # hydrofabric >= 2.2 use 'flowpaths' AND 'flowpath-attributes'
+        if {"flowpaths", "flowpath_attributes"} == values:
+            return _HFVersion.HF_2_0
+        elif {"flowlines", "flowpath-attributes"} == values:
+            return _HFVersion.HF_2_1
+        elif {"flowpaths", "flowpath-attributes"} == values:
+            return _HFVersion.HF_2_2
+        else:
+            raise KeyError(f"could not determine HF version. debug information: {values!s}")
 
-    def _read_gpkg_hydrofabric(self) -> None:
+    def _read_gpkg_hydrofabric_2_2(self) -> None:
+        # Read geopackage hydrofabric
+        self._catchment_hydro_fabric = gpd.read_file(self.hydrofabric, layer='divides')
+        self._catchment_hydro_fabric.set_index('divide_id', inplace=True)
+
+        self._nexus_hydro_fabric = gpd.read_file(self.hydrofabric, layer='nexus')
+        self._nexus_hydro_fabric.set_index('id', inplace=True)
+
+        # hydrofabric >= 2.2 use 'flowpaths'
+        self._flowpath_hydro_fabric = gpd.read_file(self.hydrofabric, layer='flowpaths')
+        self._flowpath_hydro_fabric.set_index('id', inplace=True)
+
+        # hydrofabric > 2.1 use 'flowpath-attributes'
+        attributes = gpd.read_file(self.hydrofabric, layer="flowpath-attributes")
+        attributes.set_index("id", inplace=True)
+
+        # hydrofabric >= 2.2 uses 'gage' instead of 'rl_gages'
+        self._x_walk = attributes.loc[attributes['gage'].notna(), 'gage']
+
+    def _read_gpkg_hydrofabric_2_1(self) -> None:
         # Read geopackage hydrofabric
         self._catchment_hydro_fabric = gpd.read_file(self.hydrofabric, layer='divides')
         self._catchment_hydro_fabric.set_index('divide_id', inplace=True)
@@ -297,6 +337,11 @@ class NgenBase(ModelExec):
                 args += f' {partitions}'
             values['binary'] = binary
             values['args'] = args
+
+        # accept `eval_feature` from environment if not already provided
+        eval_feature = values.get('eval_feature') or os.environ.get('eval_feature')
+        if eval_feature is not None:
+            values["eval_feature"] = eval_feature
 
         return values
 
@@ -602,8 +647,7 @@ class NgenUniform(NgenBase):
         if self.eval_feature:
             for n in eval_nexus:
                 wb = self._flowpath_hydro_fabric[ self._flowpath_hydro_fabric['toid'] == n.id ]
-                key = wb.iloc[0].name
-                if key == self.eval_feature:
+                if self.eval_feature in wb.index:
                     eval_nexus = [n]
                     break
 
