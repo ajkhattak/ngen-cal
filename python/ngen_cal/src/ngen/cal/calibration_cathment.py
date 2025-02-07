@@ -21,7 +21,7 @@ class AdjustableCatchment(FormulatableCatchment, Adjustable):
         parameteters used by the catchment.
     """
 
-    def __init__(self,  workdir: Path, id: str, nexus, params: dict = {}):
+    def __init__(self,  workdir: Path, id: str, nexus: Nexus, params: dict = {}):
         """Create an adjustable catchment and initialize its parameter space
 
         Args:
