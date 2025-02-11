@@ -86,7 +86,7 @@ class ModelHooks:
         """
 
     @hookspec(firstresult=True)
-    def ngen_cal_model_output(self, id: str | None) -> pd.Series:
+    def ngen_cal_model_output(self, nexus: Nexus) -> pd.Series:
         """
         Called during each calibration iteration to provide the model output in
         the form of a pandas Series, indexed by time.

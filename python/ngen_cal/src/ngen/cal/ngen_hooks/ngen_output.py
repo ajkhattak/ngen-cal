@@ -13,10 +13,11 @@ if TYPE_CHECKING:
     from ngen.cal.meta import JobMeta
     from ngen.cal.model import ModelExec, ValidationOptions, EvaluationOptions
     from ngen.config.realization import NgenRealization
+    from hypy.nexus import Nexus
 
 
 class _NgenCalModelOutputFn(typing.Protocol):
-    def __call__(self, id: str) -> pd.Series: ...
+    def __call__(self, id: int) -> pd.Series: ...
 
 class TrouteOutputSettings(BaseModel):
     validation_routing_output: Path
@@ -88,7 +89,7 @@ class TrouteOutput:
     # Try external provided output hooks, if those fail, try this one
     # this will only execute if all other hooks return None (or they don't exist)
     @hookimpl(specname="ngen_cal_model_output", trylast=True)
-    def get_output(self, id: str) -> pd.Series | None:
+    def get_output(self, nexus: Nexus) -> pd.Series | None:
         assert (
             self._ngen_realization is not None
         ), "ngen realization required; ensure `ngen_cal_model_configure` was called and the plugin was properly configured"
@@ -114,7 +115,30 @@ class TrouteOutput:
 
         # TODO: I dont think all output handlers can handle validation (csv comes to mind). circle back to this
         fn = self._output_handler_factory(output_file)
-        ds = fn(id)
+        # two scenarios:
+        # 1. normal t-route output feature present for each catchment.
+        #    Sum all flows for upstream contributing catchments. If this fails,
+        #    try the next scenario.
+        # 2. t-route is configured w/ stream_output `mask_output` so
+        #   potentially t-route aggregates flows at nexus for us.
+        #   try to get flow using nex- id
+        try:
+            # 1.
+            nexus_id = int(nexus.contributing_catchments[0].id[len("cat-"):])
+            ds = fn(nexus_id)
+            for catchment in nexus.contributing_catchments[1:]:
+                nexus_id = int(catchment.id[len("cat-"):])
+                ds += fn(nexus_id)
+            print("ngen.cal aggregated contributing routing flows")
+        except Exception as e:
+            try:
+                # 2.
+                nexus_id = int(nexus.id[len("nex-"):])
+                ds = fn(nexus_id)
+                print("ngen.cal using routing flows")
+            except Exception:
+                raise e
+
         ds.name = "sim_flow"
 
         # value time should be realization start_time + output_interval.
@@ -253,10 +277,9 @@ def _stream_output_csv_v1(p: Path) -> _NgenCalModelOutputFn:
     df["time"] = pd.to_timedelta(df["time"])
     df["value_time"] = df["t0"] + df["time"]
     df.rename(columns={"flow": "value", df.columns[0]: "waterbody_code"}, inplace=True)
-    df["waterbody_code"] = df["waterbody_code"].map(lambda x: f"wb-{x}")
     df.set_index("value_time", inplace=True)
 
-    def get_output(id: str) -> pd.Series:
+    def get_output(id: int) -> pd.Series:
         return df.loc[df["waterbody_code"] == id, "value"]
 
     return get_output
@@ -269,10 +292,9 @@ def _stream_output_csv_v2(p: Path) -> _NgenCalModelOutputFn:
     df = pd.read_csv(p)
     df["value_time"] = pd.to_datetime(df["current_time"])
     df.rename(columns={"flow": "value", df.columns[0]: "waterbody_code"}, inplace=True)
-    df["waterbody_code"] = df["waterbody_code"].map(lambda x: f"wb-{x}")
     df.set_index("value_time", inplace=True)
 
-    def get_output(id: str) -> pd.Series:
+    def get_output(id: int) -> pd.Series:
         return df.loc[df["waterbody_code"] == id, "value"]
 
     return get_output
@@ -310,10 +332,9 @@ def _stream_output_netcdf_v1(p: Path) -> _NgenCalModelOutputFn:
         columns={"flow": "value", "time": "value_time", "feature_id": "waterbody_code"},
         inplace=True,
     )
-    df["waterbody_code"] = df["waterbody_code"].map(lambda x: f"wb-{x}")
     df.set_index("value_time", inplace=True)
 
-    def get_output(id: str) -> pd.Series:
+    def get_output(id: int) -> pd.Series:
         return df.loc[df["waterbody_code"] == id, "value"]
 
     return get_output
@@ -327,9 +348,9 @@ def _stream_output_parquet_v1(p: Path) -> _NgenCalModelOutputFn:
     df = pd.read_parquet(p)
     df.set_index("value_time", inplace=True)
 
-    def get_output(id: str) -> pd.Series:
+    def get_output(id: int) -> pd.Series:
         return df.loc[
-            (df["location_id"] == id) & (df["variable_name"] == "streamflow"), "value"
+            (df["location_id"] == f"wb-{id}") & (df["variable_name"] == "streamflow"), "value"
         ]
 
     return get_output
