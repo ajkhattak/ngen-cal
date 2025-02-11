@@ -125,16 +125,23 @@ class TrouteOutput:
         try:
             # 1.
             nexus_id = int(nexus.contributing_catchments[0].id[len("cat-"):])
-            ds = fn(nexus_id)
+            ds: pd.Series = fn(nexus_id)
+            if ds.empty:
+                raise RuntimeError(f"no data for {nexus_id!s}")
             for catchment in nexus.contributing_catchments[1:]:
                 nexus_id = int(catchment.id[len("cat-"):])
-                ds += fn(nexus_id)
+                flows = fn(nexus_id)
+                if flows.empty:
+                    raise RuntimeError(f"no data for {nexus_id!s}")
+                ds += flows
             print("ngen.cal aggregated contributing routing flows")
         except Exception as e:
             try:
                 # 2.
                 nexus_id = int(nexus.id[len("nex-"):])
                 ds = fn(nexus_id)
+                if ds.empty:
+                    raise RuntimeError(f"no data for {nexus_id!s}")
                 print("ngen.cal using routing flows")
             except Exception:
                 raise e
