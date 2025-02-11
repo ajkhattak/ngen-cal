@@ -603,6 +603,89 @@ class NgenIndependent(NgenBase):
         else:
             module.model_params = None
 
+# TODO: aaraney: backport this functionality to all strategies
+def _build_gauged_hyfeatures_nexuses(divides: pd.DataFrame, nexuses: pd.DataFrame, crosswalk: pd.Series) -> list[Nexus]:
+    """
+    Build HY Features Nexus objects for USGS gauged locations.
+
+    Nexus objects realize the connection between a `nexus`, an associated USGS
+    gage (see hypy.nwis_location.NWISLocation), and contributing catchment
+    `divides`.
+
+    divides:
+        index:
+            type: str
+                divide ids (e.g. 'cat-1')
+        cols:
+            toid: str
+                nexus ids (e.g. 'nex-1')
+            id: str
+                flowpath ids (e.g. 'wb-1')
+    nexuses:
+        index:
+            type: str
+                nexus ids (e.g. 'nex-1')
+        cols:
+            geometry: shapely.geometry.Point
+    crosswalk:
+        index:
+            type: str
+                flowpath ids (e.g. 'wb-1')
+        value:
+            type: str
+                USGS gage id
+    """
+    eval_nexus: list[Nexus] = []
+    for wb_id, gage_id in crosswalk.items():
+        assert isinstance(wb_id, str), (
+            f"id expected to be str subtype. is type: {type(wb_id)}"
+        )
+        # NOTE: assume 1 wb to 1 cat AND wb-x is in cat-x
+        nexus_id = divides.loc[wb_id.replace("wb", "cat"), "toid"]
+        contributing_catchments = divides.index[divides["toid"] == nexus_id]
+        nexus_geometry = nexuses.at[nexus_id, "geometry"]
+        location = NWISLocation(gage_id, nexus_id, nexus_geometry)
+        nexus = Nexus(
+            nexus_id,
+            location,
+            (),
+            [Catchment(id, {}) for id in contributing_catchments],
+        )
+        eval_nexus.append(nexus)
+    return eval_nexus
+
+# TODO: aaraney: backport this functionality to other strategies
+def _find_eval_feature(eval_feature: str, nexuses: list[Nexus]) -> list[Nexus]:
+    """
+    eval_feature can be: `nex-`, gage id, `wb-`, or `cat-`
+
+    If `wb-` or `cat-` only `eval_feature` included as contributing catchment.
+    Consequently, if there are more than 1 contributing catchments,
+    their contributions will not be included when comparing against
+    observations.
+    """
+    candidates: list[Nexus] = []
+
+    if eval_feature.startswith("wb-"):
+        eval_feature = eval_feature.replace("wb-", "cat-")
+
+    for n in nexuses:
+        if eval_feature.startswith("nex-") and eval_feature == n.id:
+            candidates.append(n)
+        elif eval_feature.startswith("cat-"):
+            # NOTE: only want to compare at this `wb` / `cat`, NOT all
+            # `cat`s that contribute to entire nexus.
+            for catchment in n.contributing_catchments:
+                if eval_feature == catchment.id:
+                    candidates.append(n)
+                    # assume uniqueness
+                    break
+        else:
+            assert isinstance(n._hydro_location, NWISLocation)
+            if eval_feature == n._hydro_location.station_id:
+                candidates.append(n)
+
+        return candidates
 
 class NgenUniform(NgenBase):
     """
@@ -619,35 +702,15 @@ class NgenUniform(NgenBase):
         #now we work ours
         start_t = self.ngen_realization.time.start_time
         end_t = self.ngen_realization.time.end_time
-        eval_nexus = []
 
-        for id, toid in self._catchment_hydro_fabric['toid'].items():
-            assert isinstance(id, str), f"id expected to be str subtype. is type: {type(id)}"
-            #look for an observable nexus
-            nexus_data = self._nexus_hydro_fabric.loc[toid]
-            nwis = None
-            try:
-                nwis = self._x_walk.loc[id.replace('cat', 'wb')]
-            except KeyError:
-                try:
-                    nwis = self._x_walk.loc[id]
-                except KeyError:
-                    #not an observable nexus, try the next one
-                    continue
-                #establish the hydro location for the observation nexus associated with this catchment
-            location = NWISLocation(nwis, nexus_data.name, nexus_data.geometry)
-            nexus = Nexus(nexus_data.name, location, (), Catchment(id, {}))
-            eval_nexus.append( nexus )
+        # find nexus and contributing catchments with associated usgs gage
+        eval_nexus = _build_gauged_hyfeatures_nexuses(self._catchment_hydro_fabric, self._nexus_hydro_fabric, self._x_walk)
 
         if self.eval_feature:
-            for n in eval_nexus:
-                wb = self._flowpath_hydro_fabric[ self._flowpath_hydro_fabric['toid'] == n.id ]
-                if self.eval_feature in wb.index:
-                    eval_nexus = [n]
-                    break
+            eval_nexus = _find_eval_feature(self.eval_feature, eval_nexus)
 
         if len(eval_nexus) != 1:
-            raise RuntimeError( "Currently only a single nexus in the hydrfabric can be gaged, set the eval_feature key to pick one.")
+            raise RuntimeError("Currently only a single nexus in the hydrfabric can be gaged, set the eval_feature key to pick one.")
         params = _params_as_df(self.params)
         self._catchments.append(UniformCalibrationSet(eval_nexus=eval_nexus[0], hooks=self._plugin_manager.hook, start_time=start_t, end_time=end_t, eval_params=self.eval_params, params=params))
 
