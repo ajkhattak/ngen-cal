@@ -685,7 +685,7 @@ def _find_eval_feature(eval_feature: str, nexuses: list[Nexus]) -> list[Nexus]:
             if eval_feature == n._hydro_location.station_id:
                 candidates.append(n)
 
-        return candidates
+    return candidates
 
 class NgenUniform(NgenBase):
     """
