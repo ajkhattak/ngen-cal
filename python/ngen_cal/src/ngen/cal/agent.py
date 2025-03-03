@@ -77,7 +77,7 @@ class Agent(BaseAgent):
             # 0 correctly since not all basin params can be loaded.
             # There are probably some similar issues with explicit and independent, since they have
             # similar data semantics
-            workdirs = list(Path.glob(workdir, ngen_model.type+"_*_worker"))
+            workdirs = list(workdir.glob(f"*_{ngen_model.type}_*_worker"))
             if len(workdirs) > 1:
                 print("More than one existing workdir, cannot restart")
             elif len(workdirs) == 1:
