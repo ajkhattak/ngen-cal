@@ -1,6 +1,53 @@
 [build-system]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools>=42",
-  "wheel",
+
+[project]
+name = "ngen.config_gen"
+authors = [{ name = "Austin Raney", email = "austin.raney@noaa.gov" }]
+description = "Library and framework for genrating NextGen BMI model configuration files"
+license = { file = "README" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: Free To Use But Restricted",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "geopandas",
+    "pandas",
+    "pyarrow",
+    "pydantic<2",
+    "typing_extensions",
+    "ngen_config[all] @ git+https://github.com/noaa-owp/ngen-cal@master#egg=ngen_config&subdirectory=python/ngen_conf",
+    "ngen_init_config[all] @ git+https://github.com/noaa-owp/ngen-cal@master#egg=ngen_init_config&subdirectory=python/ngen_init_config",
+]
+dynamic = ["version"]
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/NOAA-OWP/ngen-cal"
+Source = "https://github.com/NOAA-OWP/ngen-cal/tree/master/python/ngen_config_gen"
+Tracker = "https://github.com/NOAA-OWP/ngen-cal/issues"
+
+[project.optional-dependencies]
+develop = ["pytest"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ngen.config_gen._version.__version__" }
+
+[tool.uv.sources]
+ngen_config = { path = "../ngen_conf/" }
+ngen_init_config = { path = "../ngen_init_config/", marker = "'extra' == 'all'" }
+
+[dependency-groups]
+dev = [
+    "pytest",
 ]

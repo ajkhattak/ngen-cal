@@ -1,6 +1,62 @@
 [build-system]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools>=42",
-  "wheel",
+
+[project]
+name = "ngen.cal"
+authors = [
+    { name = "Nels J. Frazier", email = "nels.frazier@noaa.gov" },
+    { name = "Austin Raney", email = "austin.raney@noaa.gov" },
+]
+description = "Suite of tools for calibration NGEN models."
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: Free To Use But Restricted",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pluggy",
+    "pydantic<2",
+    "pandas>=1.1.2",
+    "geopandas",
+    'fiona<1.10.0; python_version < "3.9"',
+    "matplotlib",
+    "hydrotools.metrics",
+    "hydrotools.nwis_client",
+    "pyarrow",
+    "tables",
+    "hypy @ git+https://github.com/noaa-owp/hypy@master#egg=hypy&subdirectory=python",
+    "ngen_config @ git+https://github.com/noaa-owp/ngen-cal@master#egg=ngen_config&subdirectory=python/ngen_conf",
+    "pyyaml",
+]
+dynamic = ["version"]
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/NOAA-OWP/ngen-cal"
+Source = "https://github.com/NOAA-OWP/ngen-cal/tree/master/python/ngen_cal"
+Tracker = "https://github.com/NOAA-OWP/ngen-cal/issues"
+
+[project.optional-dependencies]
+develop = ["pytest", "pytest-mock"]
+netcdf = ["xarray", "netcdf4"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ngen.cal._version.__version__" }
+
+[tool.uv.sources]
+ngen_config = { path = "../ngen_conf/" }
+
+[dependency-groups]
+dev = [
+    "pytest",
 ]
