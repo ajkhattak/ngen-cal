@@ -1,9 +1,10 @@
 from __future__ import annotations #for pydnaitc
 
 import logging
+import os
 
 #Typing, datamodel
-from pydantic import BaseModel, Field, DirectoryPath
+from pydantic import BaseModel, Field, DirectoryPath, validator
 from pathlib import Path
 from typing_extensions import Literal
 from typing import Any, Dict, Optional, List, Union
@@ -48,6 +49,13 @@ class General(BaseModel):
             ModuleType: lambda mod: mod.__name__,
             FunctionType: type_as_import_string,
         }
+
+    @validator("restart", always=True)
+    def _handle_restart_from_env_var(cls, value: bool) -> bool:
+        env = os.environ.get("restart", "false").lower() in ("1", "true", "on")
+        if env:
+            print("restart environment variable set")
+        return value or env
 
 class NoModel(BaseModel):
     """
