@@ -12,10 +12,12 @@ from ngen.config.sloth import SLOTH
 from ngen.config.soil_freeze_thaw import SoilFreezeThaw
 from ngen.config.soil_moisture_profile import SoilMoistureProfile
 from ngen.config.topmod import Topmod
+from ngen.config.sacsma import SacSMA
+from ngen.config.snow17 import Snow17
 
 #NOTE the order of this union is important for validation
 #unless the model class is using smart_union!
-KnownFormulations = Union[Topmod, CFE, PET, NoahOWP, LSTM, SLOTH, LGAR, SoilFreezeThaw, SoilMoistureProfile, MultiBMI]
+KnownFormulations = Union[Snow17, SacSMA, Topmod, CFE, PET, NoahOWP, LSTM, SLOTH, LGAR, SoilFreezeThaw, SoilMoistureProfile, MultiBMI]
 
 #See notes in multi.py and formulation.py about the recursive
 #type of MultiBMI modules and how the forward_refs are handled.
