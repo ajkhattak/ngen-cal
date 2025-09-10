@@ -17,6 +17,7 @@ from typing import cast, Callable, List, Union, TYPE_CHECKING
 from types import ModuleType
 
 if TYPE_CHECKING:
+    from ngen.cal.ngen import NgenBase
     from ngen.config.realization import NgenRealization
     from typing import Mapping, Any
     from pluggy import PluginManager
@@ -81,21 +82,23 @@ def _validation(agent: Agent, validation_parms: ValidationOptions):
     realization.time.start_time = sim_start
     realization.time.end_time = sim_end
 
-    assert realization.routing is not None
+    if realization.routing is not None:
+        troute_config_path = realization.routing.config
 
-    troute_config_path = realization.routing.config
+        with troute_config_path.open() as fp:
+            troute_config = yaml.safe_load(fp)
 
-    with troute_config_path.open() as fp:
-        troute_config = yaml.safe_load(fp)
+        _update_troute_config(realization, troute_config)
 
-    _update_troute_config(realization, troute_config)
+        troute_config_path_validation = troute_config_path.with_name("troute_validation.yaml")
+        with troute_config_path_validation.open("w") as fp:
+            yaml.dump(troute_config, fp)
 
-    troute_config_path_validation = troute_config_path.with_name("troute_validation.yaml")
-    with troute_config_path_validation.open("w") as fp:
-        yaml.dump(troute_config, fp)
+        # NOTE: do this before `update_config` is called so the right path is written to disk
+        realization.routing.config = troute_config_path_validation
+    else:
+        print("NOTE: routing block is not present in realization.")
 
-    # NOTE: do this before `update_config` is called so the right path is written to disk
-    realization.routing.config = troute_config_path_validation
 
     for calibration_object in adjustables:
         best_df: pd.DataFrame = calibration_object.df[[str(agent.best_params), 'param', 'model']]
@@ -105,6 +108,18 @@ def _validation(agent: Agent, validation_parms: ValidationOptions):
         # NOTE: importing here so its easier to refactor in the future
         from ngen.cal.search import _execute, _objective_func
         from ngen.cal.utils import pushd
+
+        ngen: NgenBase = agent.model.unwrap()
+        agent_pm = ngen._plugin_manager
+
+        binary = ngen.get_binary()
+        args = ngen.get_args()
+        cmd = agent_pm.hook.ngen_cal_model_validation_cmd(binary=binary, args=args)
+        if cmd is not None:
+            binary, args = cmd
+            ngen.binary = binary
+            ngen.args = args
+            print(f"binary and args overridden. using: {agent.cmd!r}")
 
         print("starting calibration")
         # TODO: validation_parms.objective and target are not being correctly configured
@@ -117,7 +132,6 @@ def _validation(agent: Agent, validation_parms: ValidationOptions):
             simulation_interval = pd.Timedelta(3600, unit="s")
             # TODO: need a way to get the nexus
             nexus = calibration_object._eval_nexus
-            agent_pm = agent.model.unwrap()._plugin_manager
             obs = agent_pm.hook.ngen_cal_model_observations(
                 nexus=nexus,
                 # NOTE: techinically start_time=`eval_start` + `simulation_interval`
