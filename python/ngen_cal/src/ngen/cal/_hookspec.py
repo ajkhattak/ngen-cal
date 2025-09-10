@@ -104,3 +104,12 @@ class ModelHooks:
         Raise `ngen.cal.errors.StopEarly` to cancel further calibration iterations.
         Post-calibration validation will be conducted if configured.
         """
+
+    @hookspec(firstresult=True)
+    def ngen_cal_model_validation_cmd(self, binary: str, args: str) -> tuple[str, str]:
+        """
+        Called before validation to override the command used for validation.
+        A plugin should return a tuple of [binary: str, args: str].
+
+        `binary` and `args` contain the values used for calibration.
+        """
