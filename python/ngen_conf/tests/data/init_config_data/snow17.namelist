@@ -1,0 +1,15 @@
+&snow17_control
+    end_datehr = 2015123112
+    forcing_root = '/dev/null'
+    main_id = 'ngen.config_gen'
+    model_timestep = 3600
+    n_hrus = 1
+    output_hrus = 0
+    output_root = '/dev/null'
+    snow17_param_file = '../input/params/snow17_params.HHWM8.txt'
+    snow_state_in_root = '/dev/null'
+    snow_state_out_root = '/dev/null'
+    start_datehr = 1970010112
+    warm_start_run = 0
+    write_states = 0
+/

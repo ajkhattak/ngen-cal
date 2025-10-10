@@ -25,6 +25,10 @@ _lgar_config_data_path = _datadir / "init_config_data" / "lgar.txt"
 _topmodel_subcat_config_path = _datadir / "init_config_data" / "subcat.dat"
 _topmodel_params_config_path = _datadir / "init_config_data" / "params.dat"
 _topmodel_config_path = _datadir / "init_config_data" / "topmodel.run"
+_snow17_config_path = _datadir / "init_config_data" / "snow17.namelist"
+_snow17_params_config_path = _datadir / "init_config_data" / "snow17_params.txt"
+_sacsma_config_path = _datadir / "init_config_data" / "sacsma.namelist"
+_sacsma_params_config_path = _datadir / "init_config_data" / "sacsma_params.txt"
 
 
 """
@@ -258,3 +262,23 @@ def topmodel_params_config(topmodel_params_config_path: Path) -> str:
 def topmodel_config() -> str:
     # drop eol char
     return _topmodel_config_path.read_text().rstrip()
+
+@pytest.fixture
+def snow17_config() -> str:
+    # drop eol char
+    return _snow17_config_path.read_text().rstrip()
+
+@pytest.fixture
+def snow17_params_config() -> str:
+    # drop eol char
+    return _snow17_params_config_path.read_text().rstrip()
+
+@pytest.fixture
+def sacsma_config() -> str:
+    # drop eol char
+    return _sacsma_config_path.read_text().rstrip()
+
+@pytest.fixture
+def sacsma_params_config() -> str:
+    # drop eol char
+    return _sacsma_params_config_path.read_text().rstrip()
