@@ -12,6 +12,8 @@ from ngen.config.init_config.pet import PET
 from ngen.config.init_config.soil_freeze_thaw import SoilFreezeThaw
 from ngen.config.init_config.soil_moisture_profile import SoilMoistureProfile
 from ngen.config.init_config.topmodel import Topmodel, TopModelSubcat, TopModelParams
+from ngen.config.init_config.snow17 import Snow17, Snow17Params
+from ngen.config.init_config.sacsma import SacSma, SacSmaParams
 
 from typing import TYPE_CHECKING
 
@@ -203,3 +205,19 @@ def test_topmodel_initialize_fields_with_non_path_pair_instances(
     assert model.subcat.inner == subcat
     assert model.params.inner is not None
     assert model.params.inner == params
+
+def test_snow17(snow17_config: str):
+    o = Snow17.from_namelist_str(snow17_config)
+    assert o.to_namelist_str() == snow17_config
+
+def test_snow17_params(snow17_params_config: str):
+    o = Snow17Params.from_str(snow17_params_config)
+    assert o.to_str() == snow17_params_config
+
+def test_sacsma(sacsma_config: str):
+    o = SacSma.from_namelist_str(sacsma_config)
+    assert o.to_namelist_str() == sacsma_config
+
+def test_sacsma_params(sacsma_params_config: str):
+    o = SacSmaParams.from_str(sacsma_params_config)
+    assert o.to_str() == sacsma_params_config
