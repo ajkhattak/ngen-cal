@@ -58,6 +58,7 @@ class BMIParams(BaseModel, smart_union=True, allow_population_by_field_name = Tr
     model_params: Optional[
         Mapping[str, Union[Numeric, Sequence[Numeric], LinkItem]]
     ]
+    output_precision: Optional[int] = None
 
     #non exposed fields, derived from fields and used to build up and validate certain components
     #such as configuration path/file
