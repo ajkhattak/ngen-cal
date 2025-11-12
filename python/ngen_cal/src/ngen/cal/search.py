@@ -186,13 +186,21 @@ def dds_set(start_iteration: int, iterations: int, agent: Agent):
 
         #Produce the baseline simulation output
         if start_iteration == 0:
+            # NOTE: this is gross... im sorry.
+            # `calibration_set.output` side effects and calls the
+            # `ngen_cal_model_output` plugin hook so it needs to be run
+            # _inside_ the working dir b.c. plugins could expect data relative
+            # to workdir. but `_execute` expects to be run from the parent dir.
+            exec = False
             with pushd(agent.job.workdir):
                 # plugins could expect data relative to workdir
                 if calibration_set.output is None:
                     #We are starting a new calibration and do not have an initial output state to evaluate, compute it
                     #Need initial states  (iteration 0) to start DDS loop
                     print(f"Running {agent.cmd} to produce initial simulation")
-                    _execute(agent)
+                    exec = True
+            if exec:
+                _execute(agent)
             with pushd(agent.job.workdir):
                 _evaluate(0, calibration_set, info=True)
             calibration_set.check_point(0, agent.job)
