@@ -44,21 +44,19 @@ class PetMethod(int, Enum):
 class PET(
     serde.IniSerializerDeserializer,
 ):
-    verbose: bool
+    verbose: bool = False
     pet_method: PetMethod
     forcing_file: Literal["BMI"] = "BMI"
     run_unit_tests: bool = False  # bool; serialize as int
-    yes_aorc: bool  # bool; serialize as int
-    yes_wrf: bool  # bool; serialize as int
+    yes_aorc: bool = True  # bool; serialize as int
     wind_speed_measurement_height_m: float  # 10.0 m
     humidity_measurement_height_m: float  # 2.0
     vegetation_height_m: float  # 0.12
     zero_plane_displacement_height_m: float  # 0.0003
-    momentum_transfer_roughness_length: float  # 0.0
+    momentum_transfer_roughness_length_m: float  # 0.0
     heat_transfer_roughness_length_m: float
     surface_longwave_emissivity: float
     surface_shortwave_albedo: float
-    cloud_base_height_known: bool  # serialize in all caps
     latitude_degrees: float
     longitude_degrees: float
     site_elevation_m: float
@@ -67,9 +65,7 @@ class PET(
     shortwave_radiation_provided: bool  # bool; serialize as int
 
     @validator("pet_method", pre=True)
-    def _coerce_pet_method(
-        cls, value: str | int | PetMethod
-    ) -> int | PetMethod:
+    def _coerce_pet_method(cls, value: str | int | PetMethod) -> int | PetMethod:
         if isinstance(value, (PetMethod, int)):
             return value
         return int(value)
