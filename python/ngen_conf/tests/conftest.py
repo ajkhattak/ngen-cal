@@ -21,7 +21,7 @@ _pet_config_data_path = _datadir / "init_config_data" / "pet.ini"
 _noah_owp_config_data_path = _datadir / "init_config_data" / "noah_owp.namelist"
 _soil_freeze_thaw_config_data_path = _datadir / "init_config_data" / "soil_freeze_thaw.txt"
 _soil_moisture_profile_config_data_path = _datadir / "init_config_data" / "soil_moisture_profile.txt"
-_lgar_config_data_path = _datadir / "init_config_data" / "lgar.txt"
+_casam_config_data_path = _datadir / "init_config_data" / "casam.txt"
 _topmodel_subcat_config_path = _datadir / "init_config_data" / "subcat.dat"
 _topmodel_params_config_path = _datadir / "init_config_data" / "params.dat"
 _topmodel_config_path = _datadir / "init_config_data" / "topmodel.run"
@@ -236,9 +236,9 @@ def soil_moisture_profile_init_config() -> str:
     return _soil_moisture_profile_config_data_path.read_text().rstrip()
 
 @pytest.fixture
-def lgar_init_config() -> str:
+def casam_init_config() -> str:
     # drop eol char
-    return _lgar_config_data_path.read_text().rstrip()
+    return _casam_config_data_path.read_text().rstrip()
 
 @pytest.fixture
 def topmodel_subcat_config_path() -> Path:
