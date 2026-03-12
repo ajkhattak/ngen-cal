@@ -34,6 +34,8 @@ class NgenRealization(BaseModel):
     catchments: Optional[ Mapping[str, CatchmentRealization] ] = {}
     # added in https://github.com/NOAA-OWP/ngen/pull/531
     output_root: Optional[Path]
+    # add in https://github.com/NOAA-OWP/ngen/pull/943
+    disable_catchment_output: Optional[bool]
 
     #FIXME https://github.com/samuelcolvin/pydantic/issues/2277
     #Until 1.10, it looks like nested encoder config doesn't apply
