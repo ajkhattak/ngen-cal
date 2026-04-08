@@ -114,10 +114,11 @@ class Agent(BaseAgent):
         return f"{self.model.get_binary()} {self.model.get_args()}"
 
     def duplicate(self) -> Agent:
-        #serialize a copy of the model
-        #FIXME ??? if you do self.model.resolve_paths() here, the duplicated agent
-        #doesn't have fully qualified paths...but if you do it in constructor, it works fine...
-        data = self.model.__root__.copy(deep=True)
-        #return a new agent, which has a unique Model instance
-        #and its own Job/workspace
-        return Agent(data, self._workdir)
+        """Return an isolated agent with a unique job workspace."""
+        model = self._model.copy(deep=True)
+        return Agent(
+            model,
+            self._workdir,
+            log=self.job.log_file is not None,
+            parameters=self.parameters,
+        )
