@@ -20,34 +20,32 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
       with:
         python-version: ${{ matrix.python-version }}
+        enable-cache: false
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install --default
 
     - name: Lint with flake8
       run: |
-        pip install -U pip
-        pip install flake8
         # stop the build if there are Python syntax errors or undefined names
-        flake8 ./python/ngen_init_config --count --select=E9,F63,F7,F82 --show-source --statistics
+        uvx flake8 ./python/ngen_cal --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 ./python/ngen_init_config --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        uvx flake8 ./python/ngen_cal --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Installing ngen_init_config in python virtual environment
       run: |
-        # setup virtual environment
-        python -m venv venv
-        source ./venv/bin/activate
-        pip install -U pip
-        pip install "python/ngen_init_config[develop]"
+        uv venv
+        uv pip install "python/ngen_init_config[develop]"
 
     - name: List dependency versions
       run: |
-        source ./venv/bin/activate
-        pip freeze
+        uv pip freeze
 
     - name: Testing ngen.init_config with pytest
       run: |
-        source ./venv/bin/activate
+        source .venv/bin/activate
         pytest python/ngen_init_config

@@ -20,19 +20,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
       with:
         python-version: ${{ matrix.python-version }}
+        enable-cache: false
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install --default
 
     - name: Lint with flake8
       run: |
-        pip install -U pip
-        pip install flake8
         # stop the build if there are Python syntax errors or undefined names
-        flake8 ./python/ngen_cal --count --select=E9,F63,F7,F82 --show-source --statistics
+        uvx flake8 ./python/ngen_cal --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 ./python/ngen_cal --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        uvx flake8 ./python/ngen_cal --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Installing libnetcdf
       run: |
@@ -42,25 +44,14 @@ jobs:
     - name: Installing ngen_cal in python virtual environment
       run: |
         # setup virtual environment
-        python -m venv venv
-        source ./venv/bin/activate
-        # upgrade pip
-        pip install -U pip
-        pip install "python/ngen_cal[develop,netcdf]"
-        # NOTE: Install checked out version of ngen_conf.
-        # This ensure ngen_cal tests test against ngen_conf source checked out by the runner.
-        pip install python/ngen_conf
-      #3.11 on GH runner can't install tables correctly, so this will fail...
-      #appearently this doesn't do what I want, it still cancels any outstanding jobs...
-      #for now, just turning off 3.11 for this test...
-      #continue-on-error: ${{matrix.python-version == 3.11 }}
+        uv venv
+        uv pip install "python/ngen_cal[develop,netcdf]"
 
     - name: List dependency versions
       run: |
-        source ./venv/bin/activate
-        pip freeze
+        uv pip freeze
 
     - name: Testing ngen_cal with pytest
       run: |
-        source ./venv/bin/activate
+        source .venv/bin/activate
         pytest python/ngen_cal
