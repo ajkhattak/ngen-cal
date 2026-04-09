@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import functools
+import typing
 from datetime import datetime
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
+import pint
+import pydantic
+from pydantic import BaseModel, root_validator
 from pydantic.main import BaseModel, _missing
 from pydantic.utils import ValueItems
 
@@ -12,6 +16,7 @@ from .typing import FieldSerializers, TypeSerializers, flatten_args
 from .utils import merge_class_attr
 
 if TYPE_CHECKING:
+    from typing import Any
     from pydantic.typing import AbstractSetIntStr, MappingIntStrAny, TupleGenerator
 
 
@@ -21,6 +26,17 @@ def _default_datetime_format(d: datetime) -> str:
     https://en.wikipedia.org/wiki/ISO_8601
     """
     return d.isoformat(timespec="seconds")
+
+
+def _numpy_like(o: object) -> bool:
+    # references:
+    # ~1.0
+    # https://numpy.org/doc/1.26/user/basics.interoperability.html
+    # https://numpy.org/doc/1.26/reference/arrays.interface.html
+    # ~2.0
+    # https://numpy.org/doc/2.4/user/basics.interoperability.html
+    # https://numpy.org/doc/2.4/reference/arrays.interface.html
+    return hasattr(o, "__array_interface__")
 
 
 class Base(BaseModel):
@@ -59,6 +75,66 @@ class Base(BaseModel):
             serialized (i.e. `.dict()` / `.json()`) using using the associated serialization
             function.
     """
+
+    @root_validator(pre=True)
+    @classmethod
+    def _handle_pint_unit_conversions(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """
+        Normalize pint.Quantity inputs for unit-aware fields by validating compatibility,
+        converting to declared units, and storing magnitudes only.
+        """
+        fields = cls.__public_fields__
+        for key, value in values.items():
+            # NOTE: only perform unit validation / conversion when we encounter a pint.Quantity
+            if isinstance(value, pint.Quantity):
+                field = fields.get(key)
+                if field is None:
+                    continue
+
+                # Fallback to "dimensionless" if the field does not have an explicit unit
+                units = field.field_info.extra.get("units") or "dimensionless"
+
+                try:
+                    value = value.to(units)
+                except pint.DimensionalityError as exc:
+                    raise ValueError(
+                        f"Field '{key}' expects units compatible with '{units}', "
+                        f"got '{value.units}'"
+                    ) from exc
+
+                magnitude = value.magnitude
+
+                # NOTE: pydantic does not play well with numpy; convert to native list.
+                if _numpy_like(magnitude):
+                    magnitude = magnitude.tolist()
+
+                values[key] = magnitude
+
+        return values
+
+    @classmethod
+    @property
+    @functools.lru_cache
+    def __public_fields__(cls) -> typing.Mapping[str, pydantic.fields.ModelField]:
+        """
+        Mapping from alias or field name(s) to pydantic.fields.ModelField.
+        Mappings from both alias and field name are present if the model is
+        configured with allow_population_by_field_name.
+        """
+        allow_population_by_field_name = cls.Config.allow_population_by_field_name
+        fields = {}
+        for field in cls.__fields__.values():
+            # has no alias; use field name
+            if not field.has_alias:
+                fields[field.name] = field
+                continue
+            # has alias; use alias name
+            fields[field.alias] = field
+
+            # field names act like aliases; also use field name
+            if allow_population_by_field_name:
+                fields[field.name] = field
+        return fields
 
     class Config(BaseModel.Config):
         field_serializers: FieldSerializers
@@ -159,10 +235,8 @@ class Base(BaseModel):
                             v,
                             to_dict=to_dict,
                             by_alias=by_alias,
-                            include=value_include
-                            and value_include.for_element(field_key),
-                            exclude=value_exclude
-                            and value_exclude.for_element(field_key),
+                            include=value_include and value_include.for_element(field_key),
+                            exclude=value_exclude and value_exclude.for_element(field_key),
                             exclude_unset=exclude_unset,
                             exclude_defaults=exclude_defaults,
                             exclude_none=exclude_none,

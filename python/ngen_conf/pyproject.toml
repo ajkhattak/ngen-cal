@@ -27,6 +27,7 @@ dependencies = [
     "pydantic<2",
     "geojson_pydantic",
     "typing_extensions",
+    "pint",
     "ngen_init_config[all] @ git+https://github.com/noaa-owp/ngen-cal@master#egg=ngen_init_config&subdirectory=python/ngen_init_config",
 ]
 dynamic = ["version"]
@@ -38,7 +39,10 @@ Source = "https://github.com/NOAA-OWP/ngen-cal/tree/master/python/ngen_conf"
 Tracker = "https://github.com/NOAA-OWP/ngen-cal/issues"
 
 [project.optional-dependencies]
-develop = ["pytest"]
+develop = [
+	"pytest",
+	"numpy",
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "ngen.config._version.__version__" }

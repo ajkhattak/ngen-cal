@@ -3,6 +3,8 @@ from typing import Dict, List, Set, Tuple, Type, Union
 
 from ngen.init_config.utils import get_attr, merge_class_attr, try_import
 
+import contextlib
+from pathlib import Path
 
 class Base:
     ...
@@ -217,3 +219,10 @@ def test_try_import_imports_std_lib_mod():
 def test_try_import_throws_import_error():
     with pytest.raises(ImportError):
         try_import("some_fake_package", extras_require_name="fake")
+
+@contextlib.contextmanager
+def unlink_after(p: Path):
+    try:
+        yield p
+    finally:
+        p.unlink(missing_ok=True)

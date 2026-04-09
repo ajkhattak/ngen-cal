@@ -5,12 +5,14 @@ import typing
 from datetime import datetime
 
 import typing_extensions
-from pydantic import validator, Field
+from pydantic import validator
 
 from ngen.config.path_pair.path_pair import PathPair, path_pair
 from ngen.init_config import serializer_deserializer as serde
 from ngen.init_config.deserializer import from_namelist_str
 from ngen.init_config.serializer import format_serializers
+from ngen.init_config.units import CommonUnits, Field
+
 
 # TODO: refactor into independent module
 from .topmodel import _maybe_into_readliner, _Readliner
@@ -120,21 +122,21 @@ class _Snow17Wrapper(serde.NamelistSerializerDeserializer):
 # NOTE: this is not a general snow17 config file parser.
 #       it only parses snow17 config files usable in ngen
 class Snow17Params(serde.GenericSerializerDeserializer):
-    hru_area: float  # sq-km, needed for combination & routing conv.
-    latitude: float  # centroid latitude of hru (decimal degrees)
-    elev: float  # mean elevation of hru (m)
-    scf: float
-    mfmax: float
-    mfmin: float
-    uadj: float
-    si: float
-    pxtemp: float
-    nmf: float
-    tipm: float
-    mbase: float
-    plwhc: float
-    daygm: float
-    adc: list[float] = Field(min_items=11, max_items=11)
+    hru_area: float = Field(units="km**2")  # sq-km, needed for combination & routing conv.
+    latitude: float= Field(units="degree")  # centroid latitude of hru (decimal degrees)
+    elev: float = Field(units=CommonUnits.Meter)  # mean elevation of hru (m)
+    scf: float = Field(ge=0.0, units=CommonUnits.Dimensionless)
+    mfmax: float = Field(units="mm / degC / hour")
+    mfmin: float = Field(units="mm / degC / hour")
+    uadj: float = Field(units="mm / mbar")
+    si: float = Field(units="mm")
+    pxtemp: float = Field(units="degC")
+    nmf: float = Field(units="mm / degC / hour")
+    tipm: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    mbase: float = Field(units="degC")
+    plwhc: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    daygm: float = Field(units="mm / day")
+    adc: list[float] = Field(min_items=11, max_items=11, units=CommonUnits.Dimensionless)
 
     @typing_extensions.override
     @classmethod

@@ -1,3 +1,5 @@
+import pint
+
 import pytest
 from ngen.init_config import (
     IniSerializerDeserializer,
@@ -8,6 +10,34 @@ from ngen.init_config import (
 )
 from ngen.init_config.core import Base
 from typing import Any, Callable, Dict, List
+
+from ngen.init_config.units import CommonUnits, Field
+from test_utils import unlink_after
+
+
+class Units(Base):
+    meter: float = Field(units=CommonUnits.Meter)
+    percent_list: List[float] = Field(units=CommonUnits.Percent)
+
+
+def test_pint_base_model_integration():
+    ureg = pint.get_application_registry()
+
+    meter_field_want = 4
+    percent_field_want = [0.25, 0.5, 0.75]
+
+    meter_field = meter_field_want * ureg.meter
+    percent_field = ureg.Quantity(percent_field_want, ureg.percent)
+
+    # Test 1: Exact unit matches
+    m = Units(meter=meter_field, percent_list=percent_field)
+    assert m.meter == meter_field_want
+    assert m.percent_list == percent_field_want
+
+    # Test 2: Dimensionality conversion matches
+    m = Units(meter=meter_field.to("mm"), percent_list=percent_field.to("hectopercent"))
+    assert m.meter == meter_field_want
+    assert m.percent_list == percent_field_want
 
 
 class Lists(Base):
@@ -74,27 +104,39 @@ def test_serialize_str_does_not_end_in_eol_char(
     assert o.to_json_str(indent=2)[-1] != os.linesep
 
 
+import contextlib
+from pathlib import Path
+
+@contextlib.contextmanager
+def unlink_after(p: Path):
+    try:
+        yield p
+    finally:
+        p.unlink(missing_ok=True)
+
 def test_serialize_to_file_includes_trailing_eol(toml_test: str):
     # NOTE: `to_ini_str` is not included. python's `configparser` library does not natively support lists
     o = Model.from_toml_str(toml_test)
     from tempfile import NamedTemporaryFile
     from pathlib import Path
-    import os
 
-    with NamedTemporaryFile() as tmp:
+    with NamedTemporaryFile(delete=False) as tmp:
+        # Explicit close is required on Windows to release the lock
+        tmp.close()
         p = Path(tmp.name)
-        o.to_yaml(p)
-        assert p.read_text()[-1] == os.linesep
+        
+        with unlink_after(p):
+            o.to_yaml(p)
+            assert p.read_text().endswith("\n")
 
-        o.to_namelist(p)
-        assert p.read_text()[-1] == os.linesep
+            o.to_namelist(p)
+            assert p.read_text().endswith("\n")
 
-        o.to_toml(p)
-        assert p.read_text()[-1] == os.linesep
+            o.to_toml(p)
+            assert p.read_text().endswith("\n")
 
-        o.to_json(p)
-        assert p.read_text()[-1] == os.linesep
-
+            o.to_json(p)
+            assert p.read_text().endswith("\n")
 
 # NOTE: python's `configparser` library does not natively support lists, only support bool, int,
 # float, str. see: https://en.wikipedia.org/wiki/INI_file#Comparison_of_INI_parsers

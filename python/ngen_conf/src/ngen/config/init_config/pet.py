@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Literal
 
 from ngen.init_config import serializer_deserializer as serde
+from ngen.init_config.units import CommonUnits, Field
 from pydantic import validator
 
 
@@ -49,23 +50,33 @@ class PET(
     forcing_file: Literal["BMI"] = "BMI"
     run_unit_tests: bool = False  # bool; serialize as int
     yes_aorc: bool = True  # bool; serialize as int
-    wind_speed_measurement_height_m: float  # 10.0 m
-    humidity_measurement_height_m: float  # 2.0
-    vegetation_height_m: float  # 0.12
-    zero_plane_displacement_height_m: float  # 0.0003
-    momentum_transfer_roughness_length_m: float  # 0.0
-    heat_transfer_roughness_length_m: float
-    surface_longwave_emissivity: float
-    surface_shortwave_albedo: float
-    latitude_degrees: float
-    longitude_degrees: float
-    site_elevation_m: float
-    time_step_size_s: int
+
+    # --- Length Parameters ---
+    wind_speed_measurement_height_m: float = Field(units=CommonUnits.Meter)  # 10.0 m
+    humidity_measurement_height_m: float = Field(units=CommonUnits.Meter)  # 2.0
+    vegetation_height_m: float = Field(units=CommonUnits.Meter)  # 0.12
+    zero_plane_displacement_height_m: float = Field(units=CommonUnits.Meter)  # 0.0003
+    momentum_transfer_roughness_length_m: float = Field(units=CommonUnits.Meter)  # 0.0
+    heat_transfer_roughness_length_m: float = Field(units=CommonUnits.Meter)
+
+    # --- Radiation Parameters (Dimensionless Fractions) ---
+    surface_longwave_emissivity: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    surface_shortwave_albedo: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+
+    # --- Location & Time ---
+    latitude_degrees: float = Field(units="degree")
+    longitude_degrees: float = Field(units="degree")
+    site_elevation_m: float = Field(units=CommonUnits.Meter)
+    time_step_size_s: int = Field(units=CommonUnits.Second)
     num_timesteps: int
+
+    # --- Options ---
     shortwave_radiation_provided: bool  # bool; serialize as int
 
     @validator("pet_method", pre=True)
-    def _coerce_pet_method(cls, value: str | int | PetMethod) -> int | PetMethod:
+    def _coerce_pet_method(
+        cls, value: str | int | PetMethod
+    ) -> int | PetMethod:
         if isinstance(value, (PetMethod, int)):
             return value
         return int(value)

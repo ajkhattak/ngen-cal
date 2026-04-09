@@ -3,58 +3,51 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Literal, Optional, Union
 
 from ngen.init_config import serializer_deserializer as serde
-from pydantic import Field, validator
+from pydantic import validator
 
-from .utils import FloatUnitPair
+from ngen.init_config.units import CommonUnits, Field
 
 if TYPE_CHECKING:
     from pydantic.typing import AbstractSetIntStr, DictStrAny, MappingIntStrAny
 
 
-m = Literal["m"]
-m_per_m = Literal["m/m"]
-empty = Literal[""]
-
-
 class CFEBase(serde.IniSerializerDeserializer):
     forcing_file: Literal["BMI"] = "BMI"
     # soil depth
-    soil_params_depth: FloatUnitPair[m]
+    soil_params_depth: float = Field(units=CommonUnits.Meter)
     # beta exponent on Clapp-Hornberger (1978) soil water relations
-    soil_params_b: FloatUnitPair[empty]
+    soil_params_b: float = Field(units=CommonUnits.Dimensionless)
     # saturated hydraulic conductivity
-    soil_params_satdk: FloatUnitPair[Literal["m s-1"]]
+    soil_params_satdk: float = Field(units="m/s")
     # saturated capillary head
-    soil_params_satpsi: FloatUnitPair[m]
+    soil_params_satpsi: float = Field(units=CommonUnits.Meter)
     # this factor (0-1) modifies the gradient of the hydraulic head at the soil bottom. 0=no-flow.
-    soil_params_slop: FloatUnitPair[m_per_m]
+    soil_params_slop: float = Field(units=CommonUnits.Dimensionless)
     # saturated soil moisture content
-    soil_params_smcmax: FloatUnitPair[m_per_m]
+    soil_params_smcmax: float = Field(units=CommonUnits.Dimensionless)
     # wilting point soil moisture content
-    soil_params_wltsmc: FloatUnitPair[m_per_m]
+    soil_params_wltsmc: float = Field(units=CommonUnits.Dimensionless)
     refkdt: Optional[float] = 3.0
-    soil_params_expon: FloatUnitPair[empty] = FloatUnitPair(value=1.0, unit="")
-    soil_params_expon_secondary: FloatUnitPair[empty] = FloatUnitPair(
-        value=1.0, unit=""
-    )
+    soil_params_expon: float = Field(default=1.0, units=CommonUnits.Dimensionless)
+    soil_params_expon_secondary: float = Field(default=1.0, units=CommonUnits.Dimensionless)
     # maximum storage in the conceptual reservoir
-    max_gw_storage: FloatUnitPair[m]
+    max_gw_storage: float = Field(units=CommonUnits.Meter)
     # the primary outlet coefficient
-    cgw: FloatUnitPair[Literal["m h-1"]]
+    cgw: float = Field(units="m/h")
     # exponent parameter (1.0 for linear reservoir)
-    expon: FloatUnitPair[empty]
+    expon: float = Field(units=CommonUnits.Dimensionless)
     # initial condition for groundwater reservoir - it is the ground water as a decimal fraction of
     # the maximum groundwater storage (max_gw_storage) for the initial timestep
-    gw_storage: FloatUnitPair[m_per_m]  # 50%
+    gw_storage: float = Field(units=CommonUnits.Dimensionless)  # 50%
     # field capacity
-    alpha_fc: FloatUnitPair[empty]
+    alpha_fc: float = Field(units=CommonUnits.Dimensionless)
     # initial condition for soil reservoir - it is the water in the soil as a decimal fraction of
     # maximum soil water storage (smcmax * depth) for the initial timestep
-    soil_storage: FloatUnitPair[m_per_m]  # 66.7%
+    soil_storage: float = Field(units=CommonUnits.Dimensionless)  # 66.7%
     # number of Nash lf reservoirs (optional, defaults to 2, ignored if storage values present)
-    k_nash: FloatUnitPair[empty]
+    k_nash: float = Field(units=CommonUnits.Dimensionless)
     # Nash Config param - primary reservoir
-    k_lf: FloatUnitPair[empty]
+    k_lf: float = Field(units=CommonUnits.Dimensionless)
     # Nash Config param - secondary reservoir
     nash_storage: List[float]
     # Giuh ordinates in dt time steps
@@ -125,7 +118,7 @@ class CFEXinanjiang(CFEBase):
 class CFESchaakeCoupledSoilMoisture(CFESchaake):
     aet_rootzone: bool  # True, true, 1
     # layer of the soil that is the maximum root zone depth. That is, the depth of the layer where the AET is drawn from
-    max_root_zone_layer: FloatUnitPair[m]
+    max_root_zone_layer: float = Field(units=CommonUnits.Meter)
     # an array of depths from the surface. Example, soil_layer_depths=0.1,0.4,1.0,2.0
     soil_layer_depths: List[float]
     # `ice-fraction based runoff` | when `CFE coupled to SoilFreezeThaw`
@@ -135,7 +128,7 @@ class CFESchaakeCoupledSoilMoisture(CFESchaake):
 class CFEXinanjiangCoupledSoilMoisture(CFEXinanjiang):
     aet_rootzone: bool  # True, true, 1
     # layer of the soil that is the maximum root zone depth. That is, the depth of the layer where the AET is drawn from
-    max_root_zone_layer: FloatUnitPair[m]
+    max_root_zone_layer: float = Field(units=CommonUnits.Meter)
     # an array of depths from the surface. Example, soil_layer_depths=0.1,0.4,1.0,2.0
     soil_layer_depths: List[float]
     # `ice-fraction based runoff` | when `CFE coupled to SoilFreezeThaw`

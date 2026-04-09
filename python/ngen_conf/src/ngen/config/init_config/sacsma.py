@@ -11,6 +11,7 @@ from ngen.config.path_pair.path_pair import PathPair, path_pair
 from ngen.init_config import serializer_deserializer as serde
 from ngen.init_config.deserializer import from_namelist_str
 from ngen.init_config.serializer import format_serializers
+from ngen.init_config.units import CommonUnits, Field
 
 # TODO: refactor into independent module
 from .topmodel import _maybe_into_readliner, _Readliner
@@ -120,23 +121,23 @@ class _SacSmaWrapper(serde.NamelistSerializerDeserializer):
 # NOTE: this is not a general sac-sma config file parser.
 #       it only parses sac-sma config files usable in ngen
 class SacSmaParams(serde.GenericSerializerDeserializer):
-    hru_area: float  # sq-km, needed for combination & routing conv.
-    uztwm: float
-    uzfwm: float
-    lztwm: float
-    lzfpm: float
-    lzfsm: float
-    adimp: float
-    uzk: float
-    lzpk: float
-    lzsk: float
-    zperc: float
-    rexp: float
-    pctim: float
-    pfree: float
-    riva: float
-    side: float
-    rserv: float
+    hru_area: float = Field(units="km**2")  # sq-km, needed for combination & routing conv.
+    uztwm: float = Field(units="mm")
+    uzfwm: float = Field(units="mm")
+    lztwm: float = Field(units="mm")
+    lzfpm: float = Field(units="mm")
+    lzfsm: float = Field(units="mm")
+    adimp: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    uzk: float = Field(units="1/day")
+    lzpk: float = Field(units="1/day")
+    lzsk: float = Field(units="1/day")
+    zperc: float = Field(units=CommonUnits.Dimensionless)
+    rexp: float = Field(units=CommonUnits.Dimensionless)
+    pctim: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    pfree: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    riva: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    side: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
+    rserv: float = Field(ge=0.0, le=1.0, units=CommonUnits.Dimensionless)
 
     @typing_extensions.override
     @classmethod
