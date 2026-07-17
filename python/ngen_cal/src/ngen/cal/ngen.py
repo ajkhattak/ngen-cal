@@ -82,6 +82,19 @@ def _map_params_to_realization(params: Mapping[str, Parameters], realization: Re
     else:
         return _params_as_df(params, module.model_name)
 
+def _to_physical_parameter_values(params: pd.DataFrame, iteration: int | str) -> pd.DataFrame:
+    """Convert values from calibration space to values expected by ngen."""
+    physical = params.copy()
+    value_column = str(iteration)
+    if 'scale' not in physical.columns:
+        return physical
+
+    log10_mask = physical['scale'].fillna('linear') == 'log10'
+    physical.loc[log10_mask, value_column] = (
+        10.0 ** physical.loc[log10_mask, value_column].astype(float)
+    )
+    return physical
+
 class _HFVersion(enum.Enum):
     HF_2_0 = enum.auto()
     HF_2_1 = enum.auto()
@@ -432,7 +445,8 @@ class NgenBase(ModelExec):
         else: #update specific catchment
             module = self.ngen_realization.catchments[id].formulations[0].params
 
-        groups = params.set_index('param').groupby('model')
+        physical_params = _to_physical_parameter_values(params, i)
+        groups = physical_params.set_index('param').groupby('model')
         if isinstance(module, MultiBMI):
             for m in module.modules:
                 name = m.params.model_name
