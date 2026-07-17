@@ -101,7 +101,9 @@ def _validation(agent: Agent, validation_parms: ValidationOptions):
 
 
     for calibration_object in adjustables:
-        best_df: pd.DataFrame = calibration_object.df[[str(agent.best_params), 'param', 'model']]
+        best_df: pd.DataFrame = calibration_object.parameters_for_iteration(
+            agent.best_params
+        )
 
         agent.update_config(agent.best_params, best_df, calibration_object.id)
 

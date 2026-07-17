@@ -61,6 +61,13 @@ class Adjustable(ABC):
         """
         return (self.df['min'], self.df['max'])
 
+    def parameters_for_iteration(self, iteration: int | str) -> DataFrame:
+        """Return parameter values and metadata needed to update the model."""
+        columns = [str(iteration), 'param', 'model']
+        if 'scale' in self.df.columns:
+            columns.append('scale')
+        return self.df[columns]
+
     @abstractmethod
     def update_params(self, iteration: int) -> None:
         """

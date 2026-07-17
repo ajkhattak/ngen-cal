@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-from typing import Sequence
+from typing import Literal, Sequence
 
 class Parameter(BaseModel, allow_population_by_field_name = True):
     """
@@ -11,5 +11,6 @@ class Parameter(BaseModel, allow_population_by_field_name = True):
     min: float
     max: float
     init: float
+    scale: Literal["linear", "log10"] = "linear"
 
 Parameters = Sequence[Parameter]
