@@ -505,6 +505,95 @@ class _LinearOptionsSchedule:
         return options
 
 
+class _PsoParticleReset:
+    """Reset particles whose personal best has not improved for several generations."""
+
+    def __init__(
+        self,
+        optimizer,
+        bounds: tuple[np.ndarray, np.ndarray],
+        delegate,
+        patience: int,
+        reset_fraction: float = 1.0,
+        preserve_global_best: bool = True,
+        log_path: Path | None = None,
+    ):
+        if patience < 1:
+            raise ValueError("PSO particle_reset.patience must be >= 1")
+        if not 0 < reset_fraction <= 1:
+            raise ValueError("PSO particle_reset.reset_fraction must be > 0 and <= 1")
+
+        self.optimizer = optimizer
+        self.lower, self.upper = bounds
+        self.delegate = delegate
+        self.patience = patience
+        self.reset_fraction = reset_fraction
+        self.preserve_global_best = preserve_global_best
+        self.log_path = log_path
+        self.previous_pbest_cost: np.ndarray | None = None
+        self.stagnant_generations: np.ndarray | None = None
+
+    def __call__(self, start_options: dict[str, float], **kwargs) -> dict[str, float]:
+        options = self.delegate(start_options, **kwargs)
+        self._reset_stagnant_particles(kwargs["iternow"])
+        return options
+
+    def _reset_stagnant_particles(self, iteration: int) -> None:
+        pbest_cost = self.optimizer.swarm.pbest_cost.copy()
+        if self.previous_pbest_cost is None:
+            self.previous_pbest_cost = pbest_cost
+            self.stagnant_generations = np.zeros_like(pbest_cost, dtype=int)
+            return
+
+        assert self.stagnant_generations is not None
+        improved = pbest_cost < self.previous_pbest_cost
+        self.stagnant_generations[improved] = 0
+        self.stagnant_generations[~improved] += 1
+        self.previous_pbest_cost = pbest_cost
+
+        candidates = np.flatnonzero(self.stagnant_generations >= self.patience)
+        if self.preserve_global_best and candidates.size:
+            global_best_particle = int(np.argmin(pbest_cost))
+            candidates = candidates[candidates != global_best_particle]
+        if not candidates.size:
+            return
+
+        reset_count = max(1, int(np.ceil(candidates.size * self.reset_fraction)))
+        # Reset the worst stagnant particles first. PSO minimizes cost, so larger
+        # personal-best costs are less useful memories to preserve.
+        order = np.argsort(pbest_cost[candidates])[::-1]
+        reset_particles = candidates[order[:reset_count]]
+        self._reset_particles(iteration, reset_particles)
+
+    def _reset_particles(self, iteration: int, particles: np.ndarray) -> None:
+        new_positions = np.random.uniform(
+            self.lower,
+            self.upper,
+            size=(len(particles), len(self.lower)),
+        )
+
+        self.optimizer.swarm.position[particles] = new_positions
+        self.optimizer.swarm.velocity[particles] = 0.0
+        self.optimizer.swarm.pbest_pos[particles] = new_positions
+        self.optimizer.swarm.pbest_cost[particles] = np.inf
+        assert self.stagnant_generations is not None
+        self.stagnant_generations[particles] = 0
+
+        if self.log_path is not None:
+            if not self.log_path.exists():
+                self.log_path.write_text(
+                    "iteration,particle,stagnant_generations,"
+                    "old_pbest_cost,new_position\n"
+                )
+            with self.log_path.open("a+") as file:
+                for particle, position in zip(particles, new_positions):
+                    file.write(
+                        f"{iteration}, {particle}, {self.patience}, "
+                        f"{self.previous_pbest_cost[particle]}, "
+                        f"{json.dumps([float(value) for value in position])}\n"
+                    )
+
+
 def _configure_pso_options_schedule(agent: Agent, optimizer) -> None:
     schedule = agent.parameters.get("options_schedule")
     if not schedule:
@@ -527,6 +616,30 @@ def _configure_pso_options_schedule(agent: Agent, optimizer) -> None:
     optimizer.oh = _LinearOptionsSchedule(
         {name: float(value) for name, value in end_options.items()},
         agent.workdir / "pso_options_log.txt",
+    )
+
+
+def _configure_pso_particle_reset(
+    agent: Agent,
+    optimizer,
+    bounds: tuple[np.ndarray, np.ndarray],
+) -> None:
+    reset = agent.parameters.get("particle_reset")
+    if reset is None or reset is False:
+        return
+    if reset is True:
+        reset = {}
+    if not reset.get("enabled", True):
+        return
+
+    optimizer.oh = _PsoParticleReset(
+        optimizer=optimizer,
+        bounds=bounds,
+        delegate=optimizer.oh,
+        patience=int(reset.get("patience", 10)),
+        reset_fraction=float(reset.get("reset_fraction", 1.0)),
+        preserve_global_best=bool(reset.get("preserve_global_best", True)),
+        log_path=agent.workdir / "pso_particle_reset_log.txt",
     )
 
 
@@ -589,6 +702,7 @@ def pso_search(start_iteration: int, iterations: int, agent: Agent) -> None:
             init_pos=initial_positions,
         )
         _configure_pso_options_schedule(agent, optimizer)
+        _configure_pso_particle_reset(agent, optimizer, bounds)
 
         # pyswarms multiprocessing is intentionally disabled so each particle
         # position remains paired with its isolated ngen Agent and workdir.
