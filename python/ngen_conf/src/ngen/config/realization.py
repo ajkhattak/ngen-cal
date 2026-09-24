@@ -36,6 +36,8 @@ class NgenRealization(BaseModel):
     output_root: Optional[Path]
     # add in https://github.com/NOAA-OWP/ngen/pull/943
     disable_catchment_output: Optional[bool]
+    # Write one NetCDF nexus-output file per formulation when supported by ngen.
+    per_formulation_nexus_files: Optional[bool]
 
     #FIXME https://github.com/samuelcolvin/pydantic/issues/2277
     #Until 1.10, it looks like nested encoder config doesn't apply

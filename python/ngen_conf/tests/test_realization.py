@@ -1,3 +1,4 @@
+import json
 import pytest
 from pathlib import Path
 from ngen.config.realization import Realization, NgenRealization
@@ -34,3 +35,24 @@ def test_ngen_global_realization_with_output_root(forcing, time, cfe):
     f = Formulation(name=cfe.name, params=cfe)
     r = Realization(formulations=[f], forcing=forcing)
     g = NgenRealization(global_config=r, time=time, output_root=Path("/some/fake/path"))
+
+
+@pytest.mark.parametrize("forcing", ["csv", "netcdf"], indirect=True)
+def test_ngen_realization_preserves_per_formulation_nexus_files(
+    forcing,
+    time,
+    cfe,
+):
+    formulation = Formulation(name=cfe.name, params=cfe)
+    realization = Realization(formulations=[formulation], forcing=forcing)
+    config = NgenRealization(
+        global_config=realization,
+        time=time,
+        per_formulation_nexus_files=True,
+    )
+
+    serialized = json.loads(
+        config.json(by_alias=True, exclude_none=True)
+    )
+
+    assert serialized["per_formulation_nexus_files"] is True
