@@ -56,3 +56,4 @@ def test_ngen_realization_preserves_per_formulation_nexus_files(
     )
 
     assert serialized["per_formulation_nexus_files"] is True
+    assert "catchments" not in serialized

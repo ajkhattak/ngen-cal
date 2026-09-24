@@ -31,7 +31,7 @@ class NgenRealization(BaseModel):
     time: Time
     routing: Optional[Routing]
     #FIXME have not tested catchments...
-    catchments: Optional[ Mapping[str, CatchmentRealization] ] = {}
+    catchments: Optional[ Mapping[str, CatchmentRealization] ] = None
     # added in https://github.com/NOAA-OWP/ngen/pull/531
     output_root: Optional[Path]
     # add in https://github.com/NOAA-OWP/ngen/pull/943
@@ -53,7 +53,7 @@ class NgenRealization(BaseModel):
         """resolve possible relative paths in configuration
         """
         self.global_config.resolve_paths(relative_to)
-        for k,v in self.catchments.items():
+        for k,v in (self.catchments or {}).items():
             v.resolve_paths(relative_to)
         if self.routing != None:
             self.routing.resolve_paths(relative_to)
