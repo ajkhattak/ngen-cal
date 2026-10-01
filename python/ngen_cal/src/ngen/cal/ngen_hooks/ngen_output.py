@@ -119,8 +119,9 @@ class TrouteOutput:
         # 1. normal t-route output feature present for each catchment.
         #    Sum all flows for upstream contributing catchments. If this fails,
         #    try the next scenario.
-        # 2. t-route is configured w/ stream_output `mask_output` so
-        #   potentially t-route aggregates flows at nexus for us.
+        # 2. t-route is configured with a nexus in netcdf_output `subset_file`
+        #   (or the legacy stream_output `mask_output`) so t-route aggregates
+        #   flows at the nexus for us.
         #   try to get flow using nex- id
         try:
             # 1.
@@ -265,8 +266,11 @@ def _csv_output_v1(p: Path, realization: NgenRealization) -> _NgenCalModelOutput
 
     r_dt_range = pd.date_range(start, end, freq=r_dt, inclusive="right")
 
-    def get_output(id: str) -> pd.Series:
-        ds = df.loc[id, (slice(None), "q")]
+    def get_output(id: int) -> pd.Series:
+        feature_id = str(id)
+        if feature_id not in df.index:
+            feature_id = f"wb-{feature_id.removeprefix('wb-')}"
+        ds = df.loc[feature_id, (slice(None), "q")]
         ds.index = r_dt_range
         return ds
 
@@ -325,20 +329,57 @@ def _stream_output_netcdf_v1(p: Path) -> _NgenCalModelOutputFn:
             "`ngen.cal` not installed with `netcdf` support. Re-install with feature flag `[netcdf]`"
         ) from e
 
-    ds = xr.open_dataset(p)
-    flow = ds.get("flow")
-    assert flow is not None
+    frames: list[pd.DataFrame] = []
+    with xr.open_dataset(p) as ds:
+        legacy_flow = ds.get("flow")
+        if legacy_flow is not None:
+            frame = legacy_flow.to_dataframe(name="value").reset_index()
+            expected_columns = {"feature_id", "time", "value"}
+            if not expected_columns.issubset(frame.columns):
+                raise RuntimeError(
+                    f"unsupported legacy t-route NetCDF schema in {p!s}"
+                )
+            frame.rename(
+                columns={
+                    "time": "value_time",
+                    "feature_id": "waterbody_code",
+                },
+                inplace=True,
+            )
+            frames.append(frame[["value_time", "waterbody_code", "value"]])
+        else:
+            for variable, id_coordinate in (
+                ("streamflow", "flowpath_id"),
+                ("nex_streamflow", "nexus_id"),
+            ):
+                flow = ds.get(variable)
+                if flow is None:
+                    continue
+                frame = flow.to_dataframe(name="value").reset_index()
+                expected_columns = {id_coordinate, "time", "value"}
+                if not expected_columns.issubset(frame.columns):
+                    raise RuntimeError(
+                        f"unsupported t-route NetCDF variable '{variable}' "
+                        f"in {p!s}"
+                    )
+                frame.rename(
+                    columns={
+                        "time": "value_time",
+                        id_coordinate: "waterbody_code",
+                    },
+                    inplace=True,
+                )
+                frames.append(
+                    frame[["value_time", "waterbody_code", "value"]]
+                )
 
-    df: pd.DataFrame = flow.to_dataframe()
-    df.reset_index(inplace=True)
+    if not frames:
+        raise RuntimeError(
+            f"t-route NetCDF output {p!s} contains no supported streamflow "
+            "variable"
+        )
 
-    expected_columns = ["feature_id", "time", "flow"]
-    assert df.columns.isin(expected_columns).sum() == len(expected_columns)
-
-    df.rename(
-        columns={"flow": "value", "time": "value_time", "feature_id": "waterbody_code"},
-        inplace=True,
-    )
+    df = pd.concat(frames, ignore_index=True)
     df.set_index("value_time", inplace=True)
 
     def get_output(id: int) -> pd.Series:
