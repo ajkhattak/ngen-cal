@@ -115,37 +115,31 @@ class TrouteOutput:
 
         # TODO: I dont think all output handlers can handle validation (csv comes to mind). circle back to this
         fn = self._output_handler_factory(output_file)
-        # two scenarios:
-        # 1. normal t-route output feature present for each catchment.
-        #    Sum all flows for upstream contributing catchments. If this fails,
-        #    try the next scenario.
-        # 2. t-route is configured with a nexus in netcdf_output `subset_file`
-        #   (or the legacy stream_output `mask_output`) so t-route aggregates
-        #   flows at the nexus for us.
-        #   try to get flow using nex- id
+        # Prefer the nexus series when t-route has already aggregated its
+        # upstream flowpaths. Fall back to summing the flowpath series.
         try:
-            # 1.
-            nexus_id = int(nexus.contributing_catchments[0].id[len("cat-"):])
+            nexus_id = int(nexus.id[len("nex-"):])
             ds: pd.Series = fn(nexus_id)
-            if ds.empty:
+            if ds.dropna().empty:
                 raise RuntimeError(f"no data for {nexus_id!s}")
-            for catchment in nexus.contributing_catchments[1:]:
-                nexus_id = int(catchment.id[len("cat-"):])
-                flows = fn(nexus_id)
-                if flows.empty:
-                    raise RuntimeError(f"no data for {nexus_id!s}")
-                ds += flows
-            print("ngen.cal aggregated contributing routing flows")
-        except Exception as e:
+            print("ngen.cal using nexus routing flows")
+        except Exception as nexus_error:
             try:
-                # 2.
-                nexus_id = int(nexus.id[len("nex-"):])
-                ds = fn(nexus_id)
-                if ds.empty:
-                    raise RuntimeError(f"no data for {nexus_id!s}")
-                print("ngen.cal using routing flows")
-            except Exception:
-                raise e
+                flowpath_id = int(
+                    nexus.contributing_catchments[0].id[len("cat-"):]
+                )
+                ds = fn(flowpath_id)
+                if ds.dropna().empty:
+                    raise RuntimeError(f"no data for {flowpath_id!s}")
+                for catchment in nexus.contributing_catchments[1:]:
+                    flowpath_id = int(catchment.id[len("cat-"):])
+                    flows = fn(flowpath_id)
+                    if flows.dropna().empty:
+                        raise RuntimeError(f"no data for {flowpath_id!s}")
+                    ds += flows
+                print("ngen.cal aggregated contributing routing flows")
+            except Exception as flowpath_error:
+                raise flowpath_error from nexus_error
 
         ds.name = "sim_flow"
 
