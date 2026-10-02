@@ -350,6 +350,8 @@ def _stream_output_netcdf_v1(p: Path) -> _NgenCalModelOutputFn:
                 if flow is None:
                     continue
                 frame = flow.to_dataframe(name="value").reset_index()
+                if variable == "streamflow" and id_coordinate not in frame.columns:
+                    id_coordinate = "feature_id"
                 expected_columns = {id_coordinate, "time", "value"}
                 if not expected_columns.issubset(frame.columns):
                     raise RuntimeError(
